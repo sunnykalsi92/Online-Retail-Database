@@ -1,0 +1,143 @@
+CREATE SCHEMA OnlineRetail;
+
+CREATE TABLE CUSTOMER (
+	CustomerID	 INT			 NOT NULL AUTO_INCREMENT,
+    LastName	 varchar(255)	 NOT NULL,
+    FirstName	 varchar(255)	 NOT NULL,
+	UserID		 varchar(255)	 NOT NULL,
+    UPassword	 varchar(255)	 NOT NULL,
+    CONSTRAINT	 CUSTOMER_PK	 PRIMARY KEY(CustomerID)
+    );
+
+CREATE TABLE CUSTOMER_CONTACT (
+	ContactID	int				 NOT NULL AUTO_INCREMENT,
+	Customer	int				 NOT NULL,	
+	Address		varchar(255)	 NOT NULL,
+    PhoneNumber varchar(11)		 NOT NULL,
+    Email		varchar(255),
+    CONSTRAINT	CUSTOMER_CONTACT_PK	Primary KEY(ContactID),
+    CONSTRAINT  CUSTOMER_CONTACT_FK FOREIGN KEY(Customer)
+					REFERENCES CUSTOMER(CustomerID)
+						ON UPDATE CASCADE
+                        ON DELETE CASCADE
+	);
+    
+CREATE TABLE CUSTOMER_BANKING (
+	BankingID	int				 NOT NULL AUTO_INCREMENT,
+	Customer	int				 NOT NULL,	
+	BankName	varchar(255)	 NOT NULL,
+    AccountNumber int		 	 NOT NULL,
+    CONSTRAINT	CUSTOMER_BANKING_PK	Primary KEY(BankingID),
+    CONSTRAINT  CUSTOMER_BANKING_FK FOREIGN KEY(Customer)
+					REFERENCES CUSTOMER(CustomerID)
+						ON UPDATE CASCADE
+                        ON DELETE CASCADE
+	);
+
+CREATE TABLE SUPPLIER (
+	SupplierID	INT					NOT NULL AUTO_INCREMENT,
+    SupplierName	varchar(255)	NOT NULL,
+    PhoneNumber		varchar(11)		NOT NULL,
+    Email			varchar(255)	NOT NULL,
+    Address			varchar(255)	NOT NULL,
+    CONSTRAINT	SUPPLIER_PK			PRIMARY KEY(SupplierID)
+    );
+
+CREATE TABLE CATAGORY (
+	CatagoryID	INT				NOT NULL AUTO_INCREMENT,
+    Catagory	varchar(255)	NOT NULL,
+    CONSTRAINT  CATAGORY_PK		PRIMARY KEY(CatagoryID)
+    );
+
+CREATE TABLE ITEM (
+	ItemID		 INT			 NOT NULL AUTO_INCREMENT,
+    ItemName	 varchar(255)	 NOT NULL,
+    ItemPrice	 float			 NOT NULL,
+    Catagory	 int			 NOT NULL, 
+	ItemQuant	 int			 NOT NULL,
+    SupplierID	 int			 NOT NULL,
+    CONSTRAINT	 ITEM_PK	 	 PRIMARY KEY(ItemID),
+	CONSTRAINT   ITEM_SUPPLIER_FK FOREIGN KEY(SupplierID)
+					REFERENCES SUPPLIER(SupplierID)
+						ON UPDATE CASCADE
+                        ON DELETE NO ACTION,
+	CONSTRAINT   ITEM_CATAGORY_FK FOREIGN KEY(Catagory)
+					REFERENCES CATAGORY(CatagoryID)
+						ON UPDATE CASCADE
+                        ON DELETE NO ACTION
+    );
+    
+
+CREATE TABLE ORDERS (
+ OrderNumber int	NOT NULL AUTO_INCREMENT,
+ CustomerID  int 	NOT NULL,
+ CONSTRAINT  ORDER_FK FOREIGN KEY(CustomerID)
+					REFERENCES CUSTOMER(CustomerID)
+						ON UPDATE CASCADE
+                        ON DELETE CASCADE,
+CONSTRAINT  orders_pk primary key (OrderNumber)
+);
+
+CREATE TABLE ORDER_DETAIL (
+	ORDERNUMBER int		NOT NULL,
+    ITEMID      int 	NOT NULL,
+    PRICE		float	NULL,
+    Quantity	int		NOT NULL,
+    totalPrice  float AS (price*quantity),
+    CONSTRAINT  ORDER_DETAIL__ITEM_FK FOREIGN KEY(ITEMID)
+					REFERENCES ITEM(ItemID)
+						ON UPDATE CASCADE
+                        ON DELETE CASCADE,
+    CONSTRAINT  ORDER_DETAIL_FK FOREIGN KEY(ORDERNUMBER)
+					REFERENCES ORDERS(OrderNumber)
+						ON UPDATE CASCADE
+                        ON DELETE CASCADE,
+	CONSTRAINT	 ORDER_DETAIL_SK	 PRIMARY KEY(ORDERNUMBER,ITEMID)
+    );
+
+CREATE TABLE BILL (
+OrderNumber int		NOT NULL,
+CustomerID  int 	NOT NULL,
+BANKINGID	int		NOT NULL,
+OrderTotal float	NOT NULL,
+constraint BILL_PK primary key (OrderNumber),
+CONSTRAINT BILL_FK foreign key(OrderNumber)
+					References ORDERS(OrderNumber),
+CONSTRAINT cust_fk foreign key(CustomerID)
+					References Customer(CustomerID),
+CONSTRAINT bank_fk foreign key(BANKINGID)
+					References Customer_BANKING(BankingID)
+);
+    
+
+
+
+#this procedure lets you register the customer and fills it in for all three customer tables
+DELIMITER //
+
+CREATE PROCEDURE CREATE_CUSTOMER(fName char(255),lName char(255), uID char(255),pass char(255), address char(255), pNumber char(11), email char(255), bank char(255), accountNumber int)
+BEGIN
+	INSERT INTO CUSTOMER (FirstName, LastName, UserID, Upassword)
+	VALUES(fName, lName, uID, pass);
+	SELECT @last_id := last_insert_id();
+	INSERT INTO CUSTOMER_CONTACT(Customer, Address, PhoneNumber, Email) 
+	VALUES(@last_id,address,pNumber,email);
+	INSERT INTO CUSTOMER_BANKING(Customer, BankName, AccountNumber) 
+	VALUES(@last_id,bank, accountNumber);
+END 
+//
+
+#this procedure lets you register the customer and fills it in for all three customer tables
+DELIMITER //
+
+CREATE PROCEDURE create_bill(orderNum int, custID int, bankingID int)
+BEGIN
+INSERT BILL(ordernumber, customerid, bankingid, ordertotal)
+VALUES
+   (orderNum, custID, bankingID, (
+			
+            SELECT sum(totalprice)
+			FROM order_detail
+			WHERE (ordernumber = ordernum)));
+END 
+//
